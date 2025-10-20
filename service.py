@@ -1,7 +1,8 @@
 from session import Session
-from utils import Response, match_password, hash_password
+from utils import Response, match_password, hash_password, login_required,is_admin
 from db import cur, auto_commit
-from models import User
+from models import User, TodoType
+from service import auto_commit
 session = Session()
 
 
@@ -46,3 +47,63 @@ def register(username, password, role):
     """, (username, hash_password(password), role))
 
     return Response("User registered successfully", 201)
+
+
+
+
+@login_required
+@is_admin
+@auto_commit
+def add_todo(title: str, description: str | None = None):
+    insert_todo_query = '''
+    INSERT INTO todos (title, user_id, todo_type, description)
+    VALUES (%s, %s, %s, %s)
+    '''
+    user = session.session
+    cur.execute(insert_todo_query, (title, user.id, TodoType.PERSONAL.value, description))
+    return Response('✅ Todo successfully inserted', 201)
+
+
+
+
+@login_required
+@is_admin
+@auto_commit
+def update_admin_role(user_id):
+    all_users_query = '''select * from users where  role = 'user' ;'''
+    cur.execute(all_users_query)
+    users = cur.fetchall()
+    for user in users:
+        print(user)
+
+    update_admin_role_query = '''update users set role = 'admin' where id = %s ;'''
+    cur.execute(update_admin_role_query, (user_id,))
+    return Response('user successfully updates',202)
+
+
+
+
+
+
+
+
+@login_required
+@is_admin
+@auto_commit
+def get_user_todo():
+    user = session.session  # Hozirgi foydalanuvchi
+    
+    query = """SELECT id, title, description, todo_type FROM todos WHERE user_id = %s;
+    """
+    cur.execute(query, (user.id,))
+    todos = cur.fetchall()
+
+    if not todos:
+        return Response("You have no todos yet.", 200)
+
+    print("\n ---- Todos ----")
+    for todo in todos:
+        todo_id, title, description, todo_type = todo
+        print(f"ID: {todo_id} | Title: {title} | Description: {description or '-'} | Type: {todo_type}")
+
+    return Response("Todos successfully retrieved.", 200)

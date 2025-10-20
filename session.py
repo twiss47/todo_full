@@ -1,4 +1,5 @@
 from models import User
+from utils import login_required
 
 
 
@@ -18,3 +19,5 @@ class Session:
     def check_session(self):
         """Return the current session user if exists."""
         return self.session
+
+
